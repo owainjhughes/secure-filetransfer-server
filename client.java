@@ -13,14 +13,14 @@ public class client
     {
         if (args.length < 3)
         {
-            System.out.println("Usage: java client <host> <port> <userid>");
+            System.out.println("Usage: java client <host> <port> <userID>");
             return;
         }
 
         // Client Parameters
         String host = args[0];
         int port = Integer.parseInt(args[1]);
-        String userid = args[2];
+        String userID = args[2];
 
         // Client Variables
         byte[] bytes;
@@ -29,7 +29,7 @@ public class client
         byte[] signedBytes;
 
         // Check the users keys exist
-        if (!new File("server.pub").exists() || !new File("server.prv").exists() || !new File(userid+".prv").exists() || !new File(userid+".pub").exists())
+        if (!new File("server.pub").exists() || !new File("server.prv").exists() || !new File(userID+".prv").exists() || !new File(userID+".pub").exists())
         {
             System.out.println("Error: User or Server keys do not exist");
             return;
@@ -51,16 +51,16 @@ public class client
             PublicKey pubKey = kf.generatePublic(keySpec);
 
             // Fetch private key of user for signature
-            File prv = new File(userid+".prv");
+            File prv = new File(userID+".prv");
             byte[] prvBytes = Files.readAllBytes(prv.toPath());
             PKCS8EncodedKeySpec prvSpec = new PKCS8EncodedKeySpec(prvBytes);
             KeyFactory kf2 = KeyFactory.getInstance("RSA");
             PrivateKey prvKey = kf2.generatePrivate(prvSpec);
             
-            // Encrypt userid and bytes
+            // Encrypt userID and bytes
             Cipher encrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
             encrypt.init(Cipher.ENCRYPT_MODE, pubKey);
-            encryptedID = encrypt.doFinal(userid.getBytes());
+            encryptedID = encrypt.doFinal(userID.getBytes());
             encryptedBytes = encrypt.doFinal(bytes);
         
             // Generate signature of the bytes
@@ -76,7 +76,7 @@ public class client
             try (Socket socket = new Socket(host, port)) {
                 System.out.println("Connected to: " + host);
                 System.out.println("Port: " + port);
-                System.out.println("User: " + userid);
+                System.out.println("User: " + userID);
                 System.out.println("Bytes:" + new String(bytes));
                 //System.out.println("Sending Encrypted:\n User:"+Arrays.toString(encryptedID));
                 //System.out.println("Bytes: "+ Arrays.toString(encryptedBytes));
@@ -86,11 +86,51 @@ public class client
                 out.write(encryptedID);
                 out.write(encryptedBytes);
                 out.write(signedBytes);
+
+                // RECEIVE DATA FROM SERVER
+                DataInputStream in = new DataInputStream(socket.getInputStream());
+                byte[] encryptedKey = new byte[256];
+                in.read(encryptedKey);
+                byte[] signedNewBytes = new byte[256];
+                in.read(signedNewBytes);
+                //System.out.println("Received Encrypted Key: " + Arrays.toString(encryptedKey));
+                //System.out.println("Received Encrypted Signed Key: " + Arrays.toString(encryptedSignedKey));
+
+                // Fetch private key of user for decryption
+                File prv = new File(userID+".prv");
+                byte[] prvBytes = Files.readAllBytes(prv.toPath());
+                PKCS8EncodedKeySpec prvSpec = new PKCS8EncodedKeySpec(prvBytes);
+                KeyFactory kf2 = KeyFactory.getInstance("RSA");
+                PrivateKey prvKey = kf2.generatePrivate(prvSpec);
+
+                // Decrypt the new key
+                Cipher decrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+                decrypt.init(Cipher.DECRYPT_MODE, prvKey);
+                byte[] decryptedKey = decrypt.doFinal(encryptedKey);
+                System.out.println("Decrypted Key: " + Arrays.toString(decryptedKey));
+
+                // Verify signature of the new key
+                PublicKey pubKey = fetchUserKeys(userID);
+                Signature verified = Signature.getInstance("SHA1withRSA");
+                verified.initVerify(pubKey);
+                verified.update(encryptedKey);
+                Boolean verification = verified.verify(signedNewBytes);
+                System.out.println("Signature Verified: " + verification);
             }
         }
         catch (IOException e)
         {
             System.out.println("Error: Cannot connect to the server" + e);
         }
+    }
+    public static PublicKey fetchUserKeys(String userID) throws Exception
+    {
+        File pub = new File(userID+".pub");
+        byte[] pubBytes = Files.readAllBytes(pub.toPath());
+        X509EncodedKeySpec keySpec = new X509EncodedKeySpec(pubBytes);
+        KeyFactory kf = KeyFactory.getInstance("RSA");
+        PublicKey pubKey = kf.generatePublic(keySpec);
+
+        return pubKey;
     }
 }

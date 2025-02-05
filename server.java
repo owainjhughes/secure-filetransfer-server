@@ -1,14 +1,17 @@
 
 import java.io.DataInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
 import java.security.KeyFactory;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 import javax.crypto.Cipher;
 
 public class server 
@@ -65,7 +68,7 @@ public class server
                         byte[] decryptedBytes = decrypt.doFinal(encBytes);
 
                         String userID = new String(decryptedID);
-                        String bytes = new String(decryptedBytes);
+                        String bytes = Arrays.toString(decryptedBytes);
 
                         // Verify signature
                         PublicKey pubKey = fetchUserKeys(userID);
@@ -77,11 +80,41 @@ public class server
                         System.out.println("Decrypted ID: " + userID);
                         System.out.println("Decrypted Bytes: " + bytes);
                         System.out.println("Signature Verified: " + verification);
+
+                        // Generate 16 random bytes and combine with clients bytes
+                        SecureRandom rand = new SecureRandom();
+                        byte[] newBytes = new byte[16];
+                        rand.nextBytes(newBytes);
+                        byte[] newKey = combineByteArrays(decryptedBytes, newBytes);
+                        System.err.println("New Key: " + Arrays.toString(newKey));
+
+                        // Encrypt the new key
+                        Cipher encrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
+                        encrypt.init(Cipher.ENCRYPT_MODE, pubKey);
+                        byte[] encryptedNewBytes = encrypt.doFinal(newKey);
+
+                        //Generate signature of new bytes
+                        Signature signature = Signature.getInstance("SHA1withRSA");
+                        signature.initSign(prvKey);
+                        signature.update(encryptedNewBytes);
+                        byte[] signedNewBytes = signature.sign();
+
+                        // SEND DATA TO CLIENT
+                        try 
+                        {
+                            acceptedSocket.getOutputStream().write(encryptedNewBytes);
+                            acceptedSocket.getOutputStream().write(signedNewBytes);
+                        }
+                        catch (IOException e)
+                        {
+                            System.out.println("Error: Cannot connect to the client" + e);
+                        }
+
                     }
                 }
                 catch (Exception e)
                 {
-                    System.out.println("Error: Cannot connect to the server" + e);
+                    System.out.println("Error: Cannot connect to the client" + e);
                 }
             }
         }
@@ -95,5 +128,13 @@ public class server
         PublicKey pubKey = kf.generatePublic(keySpec);
 
         return pubKey;
+    }
+    // With help from https://www.baeldung.com/java-concatenate-byte-arrays
+    public static byte[] combineByteArrays(byte[] a, byte[] b)
+    {
+        byte[] combined = new byte[a.length + b.length];
+        System.arraycopy(a, 0, combined, 0, a.length);
+        System.arraycopy(b, 0, combined, a.length, b.length);
+        return combined;
     }
 }
