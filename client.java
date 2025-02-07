@@ -7,7 +7,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import javax.crypto.Cipher;
 
-public class client 
+public class Client 
 {
     public static void main(String[] args) throws Exception
     {

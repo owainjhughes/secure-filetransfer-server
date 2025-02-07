@@ -14,7 +14,7 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import javax.crypto.Cipher;
 
-public class server 
+public class Server 
 {
     public static void main(String[] args) throws Exception
     {
