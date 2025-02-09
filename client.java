@@ -41,7 +41,7 @@ public class Client
             SecureRandom rand = new SecureRandom();
             bytes = new byte[16];
             rand.nextBytes(bytes);
-            System.out.println("Random Unencrypted Bytes: " + Arrays.toString(bytes));
+            //System.out.println("Random Unencrypted Bytes: " + Arrays.toString(bytes));
 
             // Fetch public key of server for encryption
             File pub = new File("server.pub");
@@ -66,7 +66,7 @@ public class Client
             // Generate signature of the bytes
             Signature signature = Signature.getInstance("SHA1withRSA");
             signature.initSign(prvKey);
-            signature.update(encryptedBytes);
+            signature.update(bytes);
             signedBytes = signature.sign();
         }
 
@@ -75,9 +75,9 @@ public class Client
         {
             try (Socket socket = new Socket(host, port)) {
                 System.out.println("Connected to: " + host);
-                System.out.println("Port: " + port);
-                System.out.println("User: " + userID);
-                System.out.println("Bytes:" + new String(bytes));
+                System.out.println("On Port: " + port);
+                System.out.println("As User: " + userID);
+                //System.out.println("Bytes:" + new String(bytes));
                 //System.out.println("Sending Encrypted:\n User:"+Arrays.toString(encryptedID));
                 //System.out.println("Bytes: "+ Arrays.toString(encryptedBytes));
                 //System.out.println("Signed: "+Arrays.toString(signedBytes));
@@ -107,15 +107,32 @@ public class Client
                 Cipher decrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                 decrypt.init(Cipher.DECRYPT_MODE, prvKey);
                 byte[] decryptedKey = decrypt.doFinal(encryptedKey);
-                System.out.println("Decrypted Key: " + Arrays.toString(decryptedKey));
+                //System.out.println("Decrypted Key: " + Arrays.toString(decryptedKey));
 
                 // Verify signature of the new key
-                PublicKey pubKey = fetchUserKeys(userID);
+                PublicKey pubKey = fetchUserKeys("server");
                 Signature verified = Signature.getInstance("SHA1withRSA");
                 verified.initVerify(pubKey);
-                verified.update(encryptedKey);
+                // decryptedKey or encryptedKey not sure will ask
+                verified.update(decryptedKey);
                 Boolean verification = verified.verify(signedNewBytes);
-                System.out.println("Signature Verified: " + verification);
+                if (verification == true)
+                {
+                    System.out.println("Signature Verified");
+                }
+                else
+                {
+                    System.out.println("Signature Verification Failed, Closing Connection");
+                    socket.close();
+                }
+                if (Arrays.equals(Arrays.copyOfRange(decryptedKey, 0, 16), bytes))
+                {
+                    System.out.println("Keys Match");
+                }
+                else
+                {
+                    System.out.println("Keys Do Not Match");
+                }
             }
         }
         catch (IOException e)
