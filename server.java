@@ -78,7 +78,7 @@ public class Server
                         PublicKey pubKey = fetchUserKeys(userID);
                         Signature verified = Signature.getInstance("SHA1withRSA");
                         verified.initVerify(pubKey);
-                        verified.update(decryptedBytes);
+                        verified.update(encBytes);
                         Boolean verification = verified.verify(signedBytes);
                         if(verification == true)
                         {
@@ -110,7 +110,7 @@ public class Server
                         Signature signature = Signature.getInstance("SHA1withRSA");
                         signature.initSign(prvKey);
                         //newkey or encryptednewbytes idk will ask in lecture
-                        signature.update(newKey);
+                        signature.update(encryptedNewBytes);
                         byte[] signedNewBytes = signature.sign();
 
                         // SEND DATA TO CLIENT
@@ -126,6 +126,14 @@ public class Server
 
                         //Generate AES Key
                         SecretKeySpec aesKey = new SecretKeySpec(newKey, "AES");
+                        System.err.println("AES Key generated");
+                        // Begin Client communications
+                        byte[] encCommand = new byte[256];
+                        in.readFully(encCommand);
+                        System.out.println("Encrypted Command: " + Arrays.toString(encCommand));
+                        String decCommand = decryptMessage(encCommand, aesKey);
+                        System.err.println("Command: " + decCommand);
+
 
                     }
                 }
@@ -166,5 +174,21 @@ public class Server
             }
         }
         return fileNames;
+    }
+    public static byte[] encryptCommand(String command, SecretKeySpec aesKey) throws Exception
+    {
+        // Encrypt using AES key
+        Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        encrypt.init(Cipher.ENCRYPT_MODE, aesKey);
+        byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
+        return encryptedCommand;
+    }
+    public static String decryptMessage(byte[] message, SecretKeySpec aesKey) throws Exception
+    {
+        // Decrypt using AES key
+        Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey);
+        byte[] decryptedMessage = decrypt.doFinal(message);
+        return new String(decryptedMessage);
     }
 }

@@ -67,14 +67,15 @@ public class Client
             // Generate signature of the bytes
             Signature signature = Signature.getInstance("SHA1withRSA");
             signature.initSign(prvKey);
-            signature.update(bytes);
+            signature.update(encryptedBytes);
             signedBytes = signature.sign();
         }
 
         // SEND DATA TO SERVER
         try 
         {
-            try (Socket socket = new Socket(host, port)) {
+            try (Socket socket = new Socket(host, port)) 
+            {
                 System.out.println("Connected to: " + host);
                 System.out.println("On Port: " + port);
                 System.out.println("As User: " + userID);
@@ -115,7 +116,7 @@ public class Client
                 Signature verified = Signature.getInstance("SHA1withRSA");
                 verified.initVerify(pubKey);
                 // decryptedKey or encryptedKey not sure will ask
-                verified.update(decryptedKey);
+                verified.update(encryptedKey);
                 Boolean verification = verified.verify(signedNewBytes);
                 if (verification == true)
                 {
@@ -136,8 +137,34 @@ public class Client
                     socket.close();
                 }
 
-                //Generate AES Key
+                //Generate AES Key and begin server communications
                 SecretKeySpec aesKey = new SecretKeySpec(decryptedKey, "AES");
+                BufferedReader command = new BufferedReader(new InputStreamReader(System.in));
+                String input = command.readLine();
+                if (input.equals("ls"))
+                {
+                    System.err.println("Sending Command: " + input);
+                    byte[] encFiles = new byte[256];
+                    byte[] encryptedCommand = encryptCommand(input, aesKey);
+                    System.err.println("Encrypted Command: " + Arrays.toString(encryptedCommand));
+                    out.write(encryptedCommand);
+                    in.read(encFiles);
+                    String files = decryptMessage(encFiles, aesKey);
+                    System.out.println(files);
+                }
+                else if (input.startsWith("get"))
+                {
+        
+                }
+                else if (input.equals("bye"))
+                {
+                    System.out.println("Goodbye");
+                    socket.close();
+                }
+                else
+                {
+                    System.out.println("Invalid Command: Usage: ls, get <filename>, bye");
+                }
             }
         }
         catch (IOException error)
@@ -155,21 +182,20 @@ public class Client
 
         return pubKey;
     }
-    public static void talkToServer() throws Exception
+    public static byte[] encryptCommand(String command, SecretKeySpec aesKey) throws Exception
     {
-        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
-        String input = in.readLine();
-        if (input.equals("ls"))
-        {
-            System.exit(0);
-        }
-        else if (input.equals("bye"))
-        {
-            System.exit(0);
-        }
-        else
-        {
-            System.out.println("Invalid Command: Usage: ls, bye");
-        }
+        // Encrypt using AES key
+        Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        encrypt.init(Cipher.ENCRYPT_MODE, aesKey);
+        byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
+        return encryptedCommand;
+    }
+    public static String decryptMessage(byte[] message, SecretKeySpec aesKey) throws Exception
+    {
+        // Decrypt using AES key
+        Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey);
+        byte[] decryptedMessage = decrypt.doFinal(message);
+        return new String(decryptedMessage);
     }
 }
