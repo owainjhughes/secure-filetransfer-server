@@ -11,8 +11,12 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+
 import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 
 public class Server 
 {
@@ -120,6 +124,9 @@ public class Server
                             System.out.println("Error: Cannot connect to the client" + e);
                         }
 
+                        //Generate AES Key
+                        SecretKeySpec aesKey = new SecretKeySpec(newKey, "AES");
+
                     }
                 }
                 catch (Exception e)
@@ -146,5 +153,18 @@ public class Server
         System.arraycopy(a, 0, combined, 0, a.length);
         System.arraycopy(b, 0, combined, a.length, b.length);
         return combined;
+    }
+    public static List<String> ListFiles(String directoryName) 
+    {
+        File[] files = new File("./").listFiles();
+        List<String> fileNames = new ArrayList<String>();
+        for (File file : files)
+        {
+            if(file.isFile() && !file.getName().endsWith(".prv"))
+            {
+                fileNames.add(file.getName());
+            }
+        }
+        return fileNames;
     }
 }

@@ -6,6 +6,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 
 public class Client 
 {
@@ -131,13 +132,17 @@ public class Client
                 }
                 else
                 {
-                    System.out.println("Keys Do Not Match");
+                    System.out.println("Keys Do Not Match, Closing Connection");
+                    socket.close();
                 }
+
+                //Generate AES Key
+                SecretKeySpec aesKey = new SecretKeySpec(decryptedKey, "AES");
             }
         }
-        catch (IOException e)
+        catch (IOException error)
         {
-            System.out.println("Error: Cannot connect to the server" + e);
+            System.out.println("Error: Cannot connect to the server" + error);
         }
     }
     public static PublicKey fetchUserKeys(String userID) throws Exception
@@ -149,5 +154,22 @@ public class Client
         PublicKey pubKey = kf.generatePublic(keySpec);
 
         return pubKey;
+    }
+    public static void talkToServer() throws Exception
+    {
+        BufferedReader in = new BufferedReader(new InputStreamReader(System.in));
+        String input = in.readLine();
+        if (input.equals("ls"))
+        {
+            System.exit(0);
+        }
+        else if (input.equals("bye"))
+        {
+            System.exit(0);
+        }
+        else
+        {
+            System.out.println("Invalid Command: Usage: ls, bye");
+        }
     }
 }
