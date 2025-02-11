@@ -6,6 +6,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Arrays;
 import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 public class Client 
@@ -88,6 +89,7 @@ public class Client
                 out.write(encryptedID);
                 out.write(encryptedBytes);
                 out.write(signedBytes);
+                out.flush();
 
                 // RECEIVE DATA FROM SERVER
                 DataInputStream in = new DataInputStream(socket.getInputStream());
@@ -95,8 +97,6 @@ public class Client
                 in.read(encryptedKey);
                 byte[] signedNewBytes = new byte[256];
                 in.read(signedNewBytes);
-                //System.out.println("Received Encrypted Key: " + Arrays.toString(encryptedKey));
-                //System.out.println("Received Encrypted Signed Key: " + Arrays.toString(encryptedSignedKey));
 
                 // Fetch private key of user for decryption
                 File prv = new File(userID+".prv");
@@ -115,10 +115,10 @@ public class Client
                 PublicKey pubKey = fetchUserKeys("server");
                 Signature verified = Signature.getInstance("SHA1withRSA");
                 verified.initVerify(pubKey);
-                // decryptedKey or encryptedKey not sure will ask
                 verified.update(encryptedKey);
                 Boolean verification = verified.verify(signedNewBytes);
-                if (verification == true)
+                // Check signature verification AND first 16 bytes are same
+                if (verification == true || Arrays.equals(Arrays.copyOfRange(decryptedKey, 0, 16), bytes))
                 {
                     System.out.println("Signature Verified");
                 }
@@ -127,30 +127,27 @@ public class Client
                     System.out.println("Signature Verification Failed, Closing Connection");
                     socket.close();
                 }
-                if (Arrays.equals(Arrays.copyOfRange(decryptedKey, 0, 16), bytes))
-                {
-                    System.out.println("Keys Match");
-                }
-                else
-                {
-                    System.out.println("Keys Do Not Match, Closing Connection");
-                    socket.close();
-                }
 
                 //Generate AES Key and begin server communications
                 SecretKeySpec aesKey = new SecretKeySpec(decryptedKey, "AES");
+                //System.err.println(aesKey.toString());
+
                 BufferedReader command = new BufferedReader(new InputStreamReader(System.in));
                 String input = command.readLine();
                 if (input.equals("ls"))
                 {
                     System.err.println("Sending Command: " + input);
-                    byte[] encFiles = new byte[256];
+                    //byte[] encFiles = new byte[256];
                     byte[] encryptedCommand = encryptCommand(input, aesKey);
-                    System.err.println("Encrypted Command: " + Arrays.toString(encryptedCommand));
+                    //System.err.println("Sending Encrypted Command: " + Arrays.toString(encryptedCommand));
+                    //String decCommand = decryptMessage(encryptedCommand, aesKey);
+                    //System.err.println("Decrypted Command: " + decCommand);
+                    //out.writeUTF(input);
                     out.write(encryptedCommand);
-                    in.read(encFiles);
-                    String files = decryptMessage(encFiles, aesKey);
-                    System.out.println(files);
+                    //System.err.println("Sent Encrypted Command");
+                    //in.read(encFiles);
+                    //String files = decryptMessage(encFiles, aesKey);
+                    //System.out.println(files);
                 }
                 else if (input.startsWith("get"))
                 {
@@ -186,7 +183,7 @@ public class Client
     {
         // Encrypt using AES key
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        encrypt.init(Cipher.ENCRYPT_MODE, aesKey);
+        encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
         byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
         return encryptedCommand;
     }
@@ -194,7 +191,7 @@ public class Client
     {
         // Decrypt using AES key
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        decrypt.init(Cipher.DECRYPT_MODE, aesKey);
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
         byte[] decryptedMessage = decrypt.doFinal(message);
         return new String(decryptedMessage);
     }

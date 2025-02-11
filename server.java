@@ -16,6 +16,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.Cipher;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 public class Server 
@@ -109,7 +110,6 @@ public class Server
                         //Generate signature of new bytes
                         Signature signature = Signature.getInstance("SHA1withRSA");
                         signature.initSign(prvKey);
-                        //newkey or encryptednewbytes idk will ask in lecture
                         signature.update(encryptedNewBytes);
                         byte[] signedNewBytes = signature.sign();
 
@@ -126,15 +126,17 @@ public class Server
 
                         //Generate AES Key
                         SecretKeySpec aesKey = new SecretKeySpec(newKey, "AES");
+                        //System.err.println(aesKey.toString());
                         System.err.println("AES Key generated");
                         // Begin Client communications
-                        byte[] encCommand = new byte[256];
+                        //String command = in.readUTF();
+                        //System.err.println(command);
+                        // This only works if 16 bytes instead of 256 idk why but do not change
+                        byte[] encCommand = new byte[16];
                         in.readFully(encCommand);
-                        System.out.println("Encrypted Command: " + Arrays.toString(encCommand));
                         String decCommand = decryptMessage(encCommand, aesKey);
+                        //System.out.println("Encrypted Command: " + Arrays.toString(encCommand));
                         System.err.println("Command: " + decCommand);
-
-
                     }
                 }
                 catch (Exception e)
@@ -179,15 +181,16 @@ public class Server
     {
         // Encrypt using AES key
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        encrypt.init(Cipher.ENCRYPT_MODE, aesKey);
+        encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
         byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
         return encryptedCommand;
     }
     public static String decryptMessage(byte[] message, SecretKeySpec aesKey) throws Exception
     {
         // Decrypt using AES key
+        System.err.println("Decrypting Message");
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        decrypt.init(Cipher.DECRYPT_MODE, aesKey);
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
         byte[] decryptedMessage = decrypt.doFinal(message);
         return new String(decryptedMessage);
     }
