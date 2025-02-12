@@ -126,8 +126,6 @@ public class Server
                         //System.err.println(aesKey.toString());
                         System.err.println("AES Key generated");
                         // Begin Client communications
-                        //String command = in.readUTF();
-                        //System.err.println(command);
                         // This only works if 16 bytes instead of 256 idk why but do not change
                         byte[] encCommand = new byte[16];
                         in.readFully(encCommand);
@@ -209,8 +207,6 @@ public class Server
             System.out.println("Fetching files...");
             String files = ListFiles();
             byte[] encFiles = encryptCommand(files, aeskey);
-            System.err.println(files);
-            System.err.println(encFiles);
             return encFiles;
         }
         else if(decCommand.contains("get"))

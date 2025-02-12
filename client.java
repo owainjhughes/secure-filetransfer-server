@@ -131,44 +131,57 @@ public class Client
                 //Generate AES Key and begin server communications
                 SecretKeySpec aesKey = new SecretKeySpec(decryptedKey, "AES");
                 //System.err.println(aesKey.toString());
-
-                System.out.println("What woud you like the server to do?");
-                BufferedReader command = new BufferedReader(new InputStreamReader(System.in));
-                String input = command.readLine();
-                if (input.equals("ls"))
+                Boolean commandTaken = false;
+                Boolean dataToDecrypt = false;
+                while (!commandTaken)
                 {
-                    System.err.println("Sending Command: " + input);
-                    //byte[] encFiles = new byte[256];
-                    byte[] encryptedCommand = encryptCommand(input, aesKey);
-                    //System.err.println("Sending Encrypted Command: " + Arrays.toString(encryptedCommand));
-                    //String decCommand = decryptMessage(encryptedCommand, aesKey);
-                    //System.err.println("Decrypted Command: " + decCommand);
-                    //out.writeUTF(input);
-                    out.write(encryptedCommand);
-                    //System.err.println("Sent Encrypted Command");
-                    //in.read(encFiles);
-                    //String files = decryptMessage(encFiles, aesKey);
-                    //System.out.println(files);
+                    System.out.println("What woud you like the server to do?");
+                    BufferedReader command = new BufferedReader(new InputStreamReader(System.in));
+                    String input = command.readLine();
+                    if (input.equals("ls"))
+                    {
+                        System.err.println("Sending Command: " + input);
+                        //byte[] encFiles = new byte[256];
+                        byte[] encryptedCommand = encryptCommand(input, aesKey);
+                        //System.err.println("Sending Encrypted Command: " + Arrays.toString(encryptedCommand));
+                        //String decCommand = decryptMessage(encryptedCommand, aesKey);
+                        //System.err.println("Decrypted Command: " + decCommand);
+                        //out.writeUTF(input);
+                        out.write(encryptedCommand);
+                        //System.err.println("Sent Encrypted Command");
+                        //in.read(encFiles);
+                        //String files = decryptMessage(encFiles, aesKey);
+                        //System.out.println(files);
+                        dataToDecrypt = true;
+                        commandTaken = true;
+                    }
+                    else if (input.startsWith("get"))
+                    {
+                        System.err.println("Fetching File");
+                        //dataToDecrypt = true;
+                        commandTaken = true;
+                    }
+                    else if (input.equals("bye"))
+                    {
+                        System.out.println("Goodbye");
+                        socket.close();
+                    }
+                    else
+                    {
+                        System.out.println("Invalid Command: Usage: ls, get <filename>, bye");
+                    }
+                    if (dataToDecrypt)
+                    {
+                        //System.err.println("taking in data");
+                        byte[] encryptedData = new byte[128];
+                        in.readFully(encryptedData);
+                        //System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
+                        String message = decryptMessage(encryptedData, aesKey);
+                        System.out.println(message);
+                        dataToDecrypt = false;
+                        commandTaken = false;
+                    }
                 }
-                else if (input.startsWith("get"))
-                {
-        
-                }
-                else if (input.equals("bye"))
-                {
-                    System.out.println("Goodbye");
-                    socket.close();
-                }
-                else
-                {
-                    System.out.println("Invalid Command: Usage: ls, get <filename>, bye");
-                }
-                System.err.println("taking in data");
-                byte[] encryptedData = new byte[256];
-                in.readFully(encryptedData);
-                System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
-                String message = decryptMessage(encryptedData, aesKey);
-                System.out.println(message);
             }
         }
         catch (IOException error)
@@ -199,7 +212,7 @@ public class Client
     public static String decryptMessage(byte[] message, SecretKeySpec aesKey) throws Exception
     {
         // Decrypt using AES key
-        System.err.println("Decrypting Message");
+        //System.err.println("Decrypting Message");
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
         byte[] decryptedMessage = decrypt.doFinal(message);
