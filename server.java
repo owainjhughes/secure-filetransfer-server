@@ -11,10 +11,7 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
-
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -136,7 +133,17 @@ public class Server
                         in.readFully(encCommand);
                         String decCommand = decryptMessage(encCommand, aesKey);
                         //System.out.println("Encrypted Command: " + Arrays.toString(encCommand));
-                        System.err.println("Command: " + decCommand);
+                        System.err.println("Received Command: " + decCommand);
+                        byte[] response = talkToClient(decCommand, aesKey);
+                        System.err.println("Encrypted Response:"+Arrays.toString(response));
+                        try 
+                        {
+                            acceptedSocket.getOutputStream().write(response);
+                        }
+                        catch (IOException e)
+                        {
+                            System.out.println("Error: Cannot connect to the client" + e);
+                        }
                     }
                 }
                 catch (Exception e)
@@ -164,15 +171,15 @@ public class Server
         System.arraycopy(b, 0, combined, a.length, b.length);
         return combined;
     }
-    public static List<String> ListFiles(String directoryName) 
+    public static String ListFiles() 
     {
         File[] files = new File("./").listFiles();
-        List<String> fileNames = new ArrayList<String>();
+        String fileNames = "";
         for (File file : files)
         {
             if(file.isFile() && !file.getName().endsWith(".prv"))
             {
-                fileNames.add(file.getName());
+                fileNames = fileNames+(file.getName()+"\n");
             }
         }
         return fileNames;
@@ -193,5 +200,34 @@ public class Server
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
         byte[] decryptedMessage = decrypt.doFinal(message);
         return new String(decryptedMessage);
+    }
+    public static byte[] talkToClient(String decCommand, SecretKeySpec aeskey) throws Exception
+    {
+
+        if (decCommand.equals("ls"))
+        {
+            System.out.println("Fetching files...");
+            String files = ListFiles();
+            byte[] encFiles = encryptCommand(files, aeskey);
+            System.err.println(files);
+            System.err.println(encFiles);
+            return encFiles;
+        }
+        else if(decCommand.contains("get"))
+        {
+            // With help from https://stackoverflow.com/questions/5067942/what-is-the-best-way-to-extract-the-first-word-from-a-string-in-java regarding getting first string in command
+            String commandStrings[] = decCommand.split(" ", 2);
+            String command = commandStrings[0];
+            String commandData = commandStrings[1];
+            System.out.println("Fetching "+commandData);
+            byte[] bytes = new byte[256];
+            return bytes;
+        }
+        else
+        {
+            System.out.println("Unknown Command");
+            byte[] bytes = new byte[256];
+            return bytes;
+        }
     }
 }

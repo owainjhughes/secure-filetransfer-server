@@ -132,6 +132,7 @@ public class Client
                 SecretKeySpec aesKey = new SecretKeySpec(decryptedKey, "AES");
                 //System.err.println(aesKey.toString());
 
+                System.out.println("What woud you like the server to do?");
                 BufferedReader command = new BufferedReader(new InputStreamReader(System.in));
                 String input = command.readLine();
                 if (input.equals("ls"))
@@ -162,6 +163,12 @@ public class Client
                 {
                     System.out.println("Invalid Command: Usage: ls, get <filename>, bye");
                 }
+                System.err.println("taking in data");
+                byte[] encryptedData = new byte[256];
+                in.readFully(encryptedData);
+                System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
+                String message = decryptMessage(encryptedData, aesKey);
+                System.out.println(message);
             }
         }
         catch (IOException error)
@@ -179,6 +186,8 @@ public class Client
 
         return pubKey;
     }
+    
+    // With help from https://stackoverflow.com/questions/17322002/what-causes-the-error-java-security-invalidkeyexception-parameters-missing regarding adding the Initilization vector 
     public static byte[] encryptCommand(String command, SecretKeySpec aesKey) throws Exception
     {
         // Encrypt using AES key
@@ -190,6 +199,7 @@ public class Client
     public static String decryptMessage(byte[] message, SecretKeySpec aesKey) throws Exception
     {
         // Decrypt using AES key
+        System.err.println("Decrypting Message");
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
         byte[] decryptedMessage = decrypt.doFinal(message);
