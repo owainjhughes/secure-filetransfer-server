@@ -59,7 +59,7 @@ public class Client
             KeyFactory kf2 = KeyFactory.getInstance("RSA");
             PrivateKey prvKey = kf2.generatePrivate(prvSpec);
             
-            // Encrypt userID and bytes
+            // Encrypt users ID and the 16 bytes
             Cipher encrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
             encrypt.init(Cipher.ENCRYPT_MODE, pubKey);
             encryptedID = encrypt.doFinal(userID.getBytes());
@@ -117,6 +117,7 @@ public class Client
                 verified.initVerify(pubKey);
                 verified.update(encryptedKey);
                 Boolean verification = verified.verify(signedNewBytes);
+
                 // Check signature verification AND first 16 bytes are same
                 if (verification == true || Arrays.equals(Arrays.copyOfRange(decryptedKey, 0, 16), bytes))
                 {
@@ -127,6 +128,9 @@ public class Client
                     System.out.println("Signature Verification Failed, Closing Connection");
                     socket.close();
                 }
+                // Generate hash of bytes for initilisation vector
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] initVector = md.digest(decryptedKey);
 
                 //Generate AES Key and begin server communications
                 SecretKeySpec aesKey = new SecretKeySpec(decryptedKey, "AES");
@@ -135,14 +139,15 @@ public class Client
                 Boolean dataToDecrypt = false;
                 while (!commandTaken)
                 {
-                    System.out.println("What woud you like the server to do?");
+                    System.out.println("What would you like the server to do?");
                     BufferedReader command = new BufferedReader(new InputStreamReader(System.in));
                     String input = command.readLine();
                     if (input.equals("ls"))
                     {
                         System.err.println("Sending Command: " + input);
                         //byte[] encFiles = new byte[256];
-                        byte[] encryptedCommand = encryptCommand(input, aesKey);
+                        byte[] encryptedCommand = encryptCommand(input, aesKey, initVector);
+                        initVector = md.digest(initVector);
                         //System.err.println("Sending Encrypted Command: " + Arrays.toString(encryptedCommand));
                         //String decCommand = decryptMessage(encryptedCommand, aesKey);
                         //System.err.println("Decrypted Command: " + decCommand);
@@ -176,7 +181,7 @@ public class Client
                         byte[] encryptedData = new byte[128];
                         in.readFully(encryptedData);
                         //System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
-                        String message = decryptMessage(encryptedData, aesKey);
+                        String message = decryptMessage(encryptedData, aesKey, initVector);
                         System.out.println(message);
                         dataToDecrypt = false;
                         commandTaken = false;
@@ -201,20 +206,20 @@ public class Client
     }
     
     // With help from https://stackoverflow.com/questions/17322002/what-causes-the-error-java-security-invalidkeyexception-parameters-missing regarding adding the Initilization vector 
-    public static byte[] encryptCommand(String command, SecretKeySpec aesKey) throws Exception
+    public static byte[] encryptCommand(String command, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
         // Encrypt using AES key
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
+        encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
         return encryptedCommand;
     }
-    public static String decryptMessage(byte[] message, SecretKeySpec aesKey) throws Exception
+    public static String decryptMessage(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
-        // Decrypt using AES key
+        // Need to change IV to the hashed bytes as described in spec
         //System.err.println("Decrypting Message");
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
         return new String(decryptedMessage);
     }

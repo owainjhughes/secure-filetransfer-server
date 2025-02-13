@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.net.*;
 import java.nio.file.Files;
 import java.security.KeyFactory;
+import java.security.MessageDigest;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -35,7 +36,7 @@ public class Server
                 DataInputStream in = new DataInputStream(acceptedSocket.getInputStream());
                 try 
                 {
-                    // Read in data and print for debugging
+                    // Read in data from client
                     byte[] encID = new byte[256];
                     in.readFully(encID);
                     byte[] encBytes = new byte[256];
@@ -48,7 +49,7 @@ public class Server
                     //System.out.println("Signed Bytes: "+Arrays.toString(signedBytes));
 
                     // DECRYPTION
-                    // Check the users keys exist
+                    // Check the servers keys exist
                     if (!new File("server.pub").exists() || !new File("server.prv").exists())
                     {
                         System.out.println("Error: User keys do not exist");
@@ -125,22 +126,29 @@ public class Server
                         SecretKeySpec aesKey = new SecretKeySpec(newKey, "AES");
                         //System.err.println(aesKey.toString());
                         System.err.println("AES Key generated");
+                        MessageDigest md = MessageDigest.getInstance("MD5");
+                        byte[] initVector = md.digest(newKey);
+
                         // Begin Client communications
-                        // This only works if 16 bytes instead of 256 idk why but do not change
-                        byte[] encCommand = new byte[16];
-                        in.readFully(encCommand);
-                        String decCommand = decryptMessage(encCommand, aesKey);
-                        //System.out.println("Encrypted Command: " + Arrays.toString(encCommand));
-                        System.err.println("Received Command: " + decCommand);
-                        byte[] response = talkToClient(decCommand, aesKey);
-                        System.err.println("Encrypted Response:"+Arrays.toString(response));
-                        try 
+                        while(true)
                         {
-                            acceptedSocket.getOutputStream().write(response);
-                        }
-                        catch (IOException e)
-                        {
-                            System.out.println("Error: Cannot connect to the client" + e);
+                            // This only works if 16 bytes instead of 256 idk why but do not change
+                            byte[] encCommand = new byte[16];
+                            in.readFully(encCommand);
+                            String decCommand = decryptMessage(encCommand, aesKey, initVector);
+                            initVector = md.digest(initVector);
+                            //System.out.println("Encrypted Command: " + Arrays.toString(encCommand));
+                            System.err.println("Received Command: " + decCommand);
+                            byte[] response = talkToClient(decCommand, aesKey, initVector);
+                            //System.err.println("Encrypted Response:"+Arrays.toString(response));
+                            try 
+                            {
+                                acceptedSocket.getOutputStream().write(response);
+                            }
+                            catch (IOException e)
+                            {
+                                System.out.println("Error: Cannot connect to the client" + e);
+                            }
                         }
                     }
                 }
@@ -182,31 +190,30 @@ public class Server
         }
         return fileNames;
     }
-    public static byte[] encryptCommand(String command, SecretKeySpec aesKey) throws Exception
+    public static byte[] encryptCommand(String command, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
         // Encrypt using AES key
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
+        encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
         return encryptedCommand;
     }
-    public static String decryptMessage(byte[] message, SecretKeySpec aesKey) throws Exception
+    public static String decryptMessage(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
-        // Decrypt using AES key
-        System.err.println("Decrypting Message");
+        //System.err.println("Decrypting Message");
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
-        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(new byte[16]));
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
         return new String(decryptedMessage);
     }
-    public static byte[] talkToClient(String decCommand, SecretKeySpec aeskey) throws Exception
+    public static byte[] talkToClient(String decCommand, SecretKeySpec aeskey, byte[] initVector) throws Exception
     {
 
         if (decCommand.equals("ls"))
         {
             System.out.println("Fetching files...");
             String files = ListFiles();
-            byte[] encFiles = encryptCommand(files, aeskey);
+            byte[] encFiles = encryptCommand(files, aeskey, initVector);
             return encFiles;
         }
         else if(decCommand.contains("get"))
