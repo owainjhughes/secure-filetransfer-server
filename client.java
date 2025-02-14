@@ -31,9 +31,9 @@ public class Client
         byte[] signedBytes;
 
         // Check the users keys exist
-        if (!new File("server.pub").exists() || !new File("server.prv").exists() || !new File(userID+".prv").exists() || !new File(userID+".pub").exists())
+        if (!new File("server.pub").exists() || !new File(userID+".prv").exists() || !new File(userID+".pub").exists())
         {
-            System.out.println("Error: User or Server keys do not exist");
+            System.out.println("Error: User or Server Public keys do not exist");
             return;
         }
         else
@@ -119,7 +119,7 @@ public class Client
                 Boolean verification = verified.verify(signedNewBytes);
 
                 // Check signature verification AND first 16 bytes are same
-                if (verification == true || Arrays.equals(Arrays.copyOfRange(decryptedKey, 0, 16), bytes))
+                if (verification == true && Arrays.equals(Arrays.copyOfRange(decryptedKey, 0, 16), bytes))
                 {
                     System.out.println("Signature Verified");
                 }
@@ -142,6 +142,7 @@ public class Client
                     System.out.println("What would you like the server to do?");
                     BufferedReader command = new BufferedReader(new InputStreamReader(System.in));
                     String input = command.readLine();
+                    String[] commands = input.split(" ");
                     if (input.equals("ls"))
                     {
                         System.err.println("Sending Command: " + input);
@@ -160,10 +161,13 @@ public class Client
                         dataToDecrypt = true;
                         commandTaken = true;
                     }
-                    else if (input.startsWith("get"))
+                    else if (input.startsWith("get") && commands.length==2)
                     {
-                        System.err.println("Fetching File");
-                        //dataToDecrypt = true;
+                        System.err.println("Attempting to fetch file: "+commands[1]);
+                        byte[] encryptedCommand = encryptCommand(input, aesKey, initVector);
+                        initVector = md.digest(initVector);
+                        out.write(encryptedCommand);
+                        dataToDecrypt = true;
                         commandTaken = true;
                     }
                     else if (input.equals("bye"))

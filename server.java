@@ -12,7 +12,10 @@ import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -52,7 +55,7 @@ public class Server
                     // Check the servers keys exist
                     if (!new File("server.pub").exists() || !new File("server.prv").exists())
                     {
-                        System.out.println("Error: User keys do not exist");
+                        System.out.println("Error: Servers keys do not exist");
                         return;
                     }
                     else
@@ -190,6 +193,19 @@ public class Server
         }
         return fileNames;
     }
+    public static List<String> getFiles() 
+    {
+        File[] files = new File("./").listFiles();
+        List<String> fileNames = new ArrayList<String>();
+        for (File file : files)
+        {
+            if(file.isFile() && !file.getName().endsWith(".prv"))
+            {
+                fileNames.add(file.getName());
+            }
+        }
+        return fileNames;
+    }
     public static byte[] encryptCommand(String command, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
         // Encrypt using AES key
@@ -216,13 +232,17 @@ public class Server
             byte[] encFiles = encryptCommand(files, aeskey, initVector);
             return encFiles;
         }
-        else if(decCommand.contains("get"))
+        else if(decCommand.startsWith("get"))
         {
             // With help from https://stackoverflow.com/questions/5067942/what-is-the-best-way-to-extract-the-first-word-from-a-string-in-java regarding getting first string in command
             String commandStrings[] = decCommand.split(" ", 2);
-            String command = commandStrings[0];
             String commandData = commandStrings[1];
-            System.out.println("Fetching "+commandData);
+            System.out.println("Attempting to fetch "+commandData+"...");
+            List<String> files = getFiles();
+            if (files.contains(commandData))
+            {
+                System.err.println(commandData+" Found");
+            }
             byte[] bytes = new byte[256];
             return bytes;
         }
