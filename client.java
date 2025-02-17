@@ -170,12 +170,12 @@ public class Client
                         out.write(encryptedCommand);
                         fileToDecrypt = true;
                         commandTaken = true;
-                        System.err.println("test111");
                     }
                     else if (input.equals("bye"))
                     {
                         System.out.println("Goodbye");
                         socket.close();
+                        System.exit(0);
                     }
                     else
                     {
@@ -185,11 +185,15 @@ public class Client
                     {
                         // size of byte depends on number of files in directory
                         System.err.println("Taking in data");
+                        Integer byteSize = 0;
+                        byteSize = in.read();
                         //byte[] byteSize = new byte[144];
-                        //in.readFully(byteSize);
+                        //byte[] byteSize = new byte[16];
+                        //Integer byteSizeDec = decryptSize(byteSize, aesKey, initVector);
+                        //System.err.println("Expecting"+byteSizeDec+"bytes");
                         //String byteSizeDec = decryptMessage(byteSize, aesKey, initVector);
-                        //System.err.println("Expecting"+byteSize+"bytes");
-                        byte[] encryptedData = new byte[144];
+                        System.err.println("Expecting"+byteSize+"bytes");
+                        byte[] encryptedData = new byte[byteSize];
                         in.readFully(encryptedData);
                         //System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
                         String message = decryptMessage(encryptedData, aesKey, initVector);
@@ -200,7 +204,12 @@ public class Client
                     else if (fileToDecrypt)
                     {
                         // size of byte depends on size of file
-                        byte[] encryptedData = new byte[16];
+                        Integer byteSize = 0;
+                        in.read();
+                        //byte[] byteSize = new byte[128];
+                        //Integer byteSizeDec = decryptSize(byteSize, aesKey, initVector);
+                        System.err.println("Expecting"+byteSize+"bytes");
+                        byte[] encryptedData = new byte[byteSize];
                         in.read(encryptedData);
                         System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
                         String message = decryptFile(encryptedData, commands[1], aesKey, initVector);
@@ -243,6 +252,16 @@ public class Client
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
         return new String(decryptedMessage);
+    }
+    public static Integer decryptSize(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
+    {
+        //System.err.println("Decrypting Message");
+        Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
+        byte[] decryptedMessage = decrypt.doFinal(message);
+        String size =  new String(decryptedMessage);
+        System.err.println(Integer.parseInt(size));
+        return Integer.parseInt(size);
     }
     public static String decryptFile(byte[] message, String fileName, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {

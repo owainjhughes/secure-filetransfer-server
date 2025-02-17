@@ -15,7 +15,6 @@ import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
 import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
@@ -147,10 +146,12 @@ public class Server
                             Integer noOfBytes = response.length;
                             System.err.println("Number of bytes to send = "+noOfBytes);
                             byte [] responseSize = encryptInteger(noOfBytes, aesKey, initVector);
-                            System.err.println("Encrypted Response:"+Arrays.toString(response));
+                            System.err.println("Encrypted Response Size:"+Arrays.toString(responseSize));
                             try 
                             {
                                 //acceptedSocket.getOutputStream().write(responseSize);
+                                System.err.println(noOfBytes);
+                                acceptedSocket.getOutputStream().write(noOfBytes);
                                 acceptedSocket.getOutputStream().write(response);
                             }
                             catch (IOException e)
@@ -265,6 +266,7 @@ public class Server
                 System.err.println(commandData+" Found");
                 File file = new File("./"+commandData);
                 //System.err.println(file.getName());
+                //better to convert to string and send same as enc message that ls does?
                 byte[] fileToSend = encryptFile(file, aeskey, initVector);
                 return fileToSend;
             }
