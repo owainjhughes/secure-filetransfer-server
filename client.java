@@ -137,6 +137,7 @@ public class Client
                 //System.err.println(aesKey.toString());
                 Boolean commandTaken = false;
                 Boolean dataToDecrypt = false;
+                Boolean fileToDecrypt = false;
                 while (!commandTaken)
                 {
                     System.out.println("What would you like the server to do?");
@@ -167,8 +168,9 @@ public class Client
                         byte[] encryptedCommand = encryptCommand(input, aesKey, initVector);
                         initVector = md.digest(initVector);
                         out.write(encryptedCommand);
-                        dataToDecrypt = true;
+                        fileToDecrypt = true;
                         commandTaken = true;
+                        System.err.println("test111");
                     }
                     else if (input.equals("bye"))
                     {
@@ -181,13 +183,29 @@ public class Client
                     }
                     if (dataToDecrypt)
                     {
-                        //System.err.println("taking in data");
-                        byte[] encryptedData = new byte[128];
+                        // size of byte depends on number of files in directory
+                        System.err.println("Taking in data");
+                        //byte[] byteSize = new byte[144];
+                        //in.readFully(byteSize);
+                        //String byteSizeDec = decryptMessage(byteSize, aesKey, initVector);
+                        //System.err.println("Expecting"+byteSize+"bytes");
+                        byte[] encryptedData = new byte[144];
                         in.readFully(encryptedData);
                         //System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
                         String message = decryptMessage(encryptedData, aesKey, initVector);
                         System.out.println(message);
                         dataToDecrypt = false;
+                        commandTaken = false;
+                    }
+                    else if (fileToDecrypt)
+                    {
+                        // size of byte depends on size of file
+                        byte[] encryptedData = new byte[16];
+                        in.read(encryptedData);
+                        System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
+                        String message = decryptFile(encryptedData, commands[1], aesKey, initVector);
+                        System.out.println(message);
+                        fileToDecrypt = false;
                         commandTaken = false;
                     }
                 }
@@ -220,11 +238,23 @@ public class Client
     }
     public static String decryptMessage(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
-        // Need to change IV to the hashed bytes as described in spec
         //System.err.println("Decrypting Message");
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
         return new String(decryptedMessage);
+    }
+    public static String decryptFile(byte[] message, String fileName, SecretKeySpec aesKey, byte[] initVector) throws Exception
+    {
+        //System.err.println("Decrypting Message");
+        Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
+        byte[] decryptedMessage = decrypt.doFinal(message);
+        // Can be tested to see if it works by changing the FileOutputStream parameters e.g. ("test"+fileName)
+        try (FileOutputStream fos = new FileOutputStream("test"+fileName)) 
+        {
+            fos.write(decryptedMessage);
+        }
+        return fileName+" has been fetched";
     }
 }

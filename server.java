@@ -143,9 +143,14 @@ public class Server
                             //System.out.println("Encrypted Command: " + Arrays.toString(encCommand));
                             System.err.println("Received Command: " + decCommand);
                             byte[] response = talkToClient(decCommand, aesKey, initVector);
-                            //System.err.println("Encrypted Response:"+Arrays.toString(response));
+
+                            Integer noOfBytes = response.length;
+                            System.err.println("Number of bytes to send = "+noOfBytes);
+                            byte [] responseSize = encryptInteger(noOfBytes, aesKey, initVector);
+                            System.err.println("Encrypted Response:"+Arrays.toString(response));
                             try 
                             {
+                                //acceptedSocket.getOutputStream().write(responseSize);
                                 acceptedSocket.getOutputStream().write(response);
                             }
                             catch (IOException e)
@@ -214,6 +219,22 @@ public class Server
         byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
         return encryptedCommand;
     }
+    public static byte[] encryptInteger(Integer byteSize, SecretKeySpec aesKey, byte[] initVector) throws Exception
+    {
+        // Encrypt using AES key
+        Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
+        byte[] encryptedCommand = encrypt.doFinal(byteSize.toString().getBytes());
+        return encryptedCommand;
+    }
+    public static byte[] encryptFile(File file, SecretKeySpec aesKey, byte[] initVector) throws Exception
+    {
+        // Encrypt using AES key
+        Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
+        byte[] encryptedCommand = encrypt.doFinal(Files.readAllBytes(file.toPath()));
+        return encryptedCommand;
+    }
     public static String decryptMessage(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
         //System.err.println("Decrypting Message");
@@ -224,11 +245,11 @@ public class Server
     }
     public static byte[] talkToClient(String decCommand, SecretKeySpec aeskey, byte[] initVector) throws Exception
     {
-
         if (decCommand.equals("ls"))
         {
             System.out.println("Fetching files...");
             String files = ListFiles();
+
             byte[] encFiles = encryptCommand(files, aeskey, initVector);
             return encFiles;
         }
@@ -242,9 +263,13 @@ public class Server
             if (files.contains(commandData))
             {
                 System.err.println(commandData+" Found");
+                File file = new File("./"+commandData);
+                //System.err.println(file.getName());
+                byte[] fileToSend = encryptFile(file, aeskey, initVector);
+                return fileToSend;
             }
-            byte[] bytes = new byte[256];
-            return bytes;
+            System.err.println("Error fetching file");
+            return new byte[256];
         }
         else
         {
