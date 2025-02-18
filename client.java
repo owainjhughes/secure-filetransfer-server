@@ -168,9 +168,12 @@ public class Client
                     }
                     if (dataToDecrypt)
                     {
+                        // Get number of bytes so it knows how much data is being sent
                         byte[] encSize = new byte[16];
                         in.readFully(encSize);
                         Integer byteSize = decryptSize(encSize, aesKey, initVector);
+
+                        // Then decrypt the actual data
                         byte[] encryptedData = new byte[byteSize];
                         in.readFully(encryptedData);
                         String message = decryptMessage(encryptedData, aesKey, initVector);
@@ -184,7 +187,6 @@ public class Client
                         byte[] encSize = new byte[16];
                         in.readFully(encSize);
                         Integer byteSize = decryptSize(encSize, aesKey, initVector);
-                        System.out.println("Expecting "+byteSize+ " bytes");
 
                         // Then decrypt the actual data
                         byte[] encryptedData = new byte[byteSize];
@@ -219,6 +221,7 @@ public class Client
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
+
         return encryptedCommand;
     }
     public static String decryptMessage(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
@@ -226,6 +229,7 @@ public class Client
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
+
         return new String(decryptedMessage);
     }
     public static Integer decryptSize(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
@@ -234,6 +238,7 @@ public class Client
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
         String size =  new String(decryptedMessage);
+        
         return Integer.parseInt(size);
     }
     public static String decryptFile(byte[] message, String fileName, SecretKeySpec aesKey, byte[] initVector) throws Exception
@@ -241,7 +246,7 @@ public class Client
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
-        
+
         // Not the best way to handle incorrect files but it works
         String errMessage = new String(decryptedMessage);
         if (errMessage.equals("No such file exists"))

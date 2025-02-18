@@ -96,7 +96,7 @@ public class Server
                         encrypt.init(Cipher.ENCRYPT_MODE, pubKey);
                         byte[] encryptedNewBytes = encrypt.doFinal(newKey);
 
-                        //Generate signature of new bytes
+                        // Generate signature of new bytes
                         Signature signature = Signature.getInstance("SHA1withRSA");
                         signature.initSign(prvKey);
                         signature.update(encryptedNewBytes);
@@ -208,6 +208,7 @@ public class Server
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
+
         return encryptedCommand;
     }
 
@@ -216,6 +217,7 @@ public class Server
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(byteSize.toString().getBytes());
+
         return encryptedCommand;
     }
 
@@ -224,6 +226,7 @@ public class Server
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(Files.readAllBytes(file.toPath()));
+
         return encryptedCommand;
     }
 
@@ -232,6 +235,7 @@ public class Server
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
+        
         return new String(decryptedMessage);
     }
 
