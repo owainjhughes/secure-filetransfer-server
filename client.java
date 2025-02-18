@@ -185,12 +185,12 @@ public class Client
                     {
                         // size of byte depends on number of files in directory
                         System.err.println("Taking in data");
-                        Integer byteSize = 0;
-                        byteSize = in.read();
+                        //Integer byteSize = 0;
+                        //byteSize = in.read();
                         //byte[] byteSize = new byte[144];
-                        //byte[] byteSize = new byte[16];
-                        //Integer byteSizeDec = decryptSize(byteSize, aesKey, initVector);
-                        //System.err.println("Expecting"+byteSizeDec+"bytes");
+                        byte[] encSize = new byte[16];
+                        in.readFully(encSize);
+                        Integer byteSize = decryptSize(encSize, aesKey, initVector);
                         //String byteSizeDec = decryptMessage(byteSize, aesKey, initVector);
                         System.err.println("Expecting"+byteSize+"bytes");
                         byte[] encryptedData = new byte[byteSize];
@@ -204,13 +204,15 @@ public class Client
                     else if (fileToDecrypt)
                     {
                         // size of byte depends on size of file
-                        Integer byteSize = 0;
-                        in.read();
-                        //byte[] byteSize = new byte[128];
-                        //Integer byteSizeDec = decryptSize(byteSize, aesKey, initVector);
+                        //Integer byteSize = 0;
+                        //in.read();
+                        byte[] encSize = new byte[16];
+                        in.readFully(encSize);
+                        Integer byteSize = decryptSize(encSize, aesKey, initVector);
                         System.err.println("Expecting"+byteSize+"bytes");
+
                         byte[] encryptedData = new byte[byteSize];
-                        in.read(encryptedData);
+                        in.readFully(encryptedData);
                         System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
                         String message = decryptFile(encryptedData, commands[1], aesKey, initVector);
                         System.out.println(message);

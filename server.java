@@ -151,8 +151,9 @@ public class Server
                             {
                                 //acceptedSocket.getOutputStream().write(responseSize);
                                 System.err.println(noOfBytes);
-                                acceptedSocket.getOutputStream().write(noOfBytes);
+                                acceptedSocket.getOutputStream().write(responseSize);
                                 acceptedSocket.getOutputStream().write(response);
+                                acceptedSocket.getOutputStream().flush();
                             }
                             catch (IOException e)
                             {
