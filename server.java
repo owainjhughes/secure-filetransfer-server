@@ -45,10 +45,6 @@ public class Server
                     in.readFully(encBytes);
                     byte[] signedBytes = new byte[256];
                     in.readFully(signedBytes);
-                    // These were mainly for debugging
-                    //System.out.println("Client: \n Encrypted ID:"+Arrays.toString(encID));
-                    //System.out.println("Encypted Bytes: "+ Arrays.toString(encBytes));
-                    //System.out.println("Signed Bytes: "+Arrays.toString(signedBytes));
 
                     // DECRYPTION
                     // Check the servers keys exist
@@ -71,9 +67,7 @@ public class Server
                         decrypt.init(Cipher.DECRYPT_MODE, prvKey);
                         byte[] decryptedID = decrypt.doFinal(encID);
                         byte[] decryptedBytes = decrypt.doFinal(encBytes);
-
                         String userID = new String(decryptedID);
-                        String bytes = Arrays.toString(decryptedBytes);
 
                         // Verify signature
                         PublicKey pubKey = fetchUserKeys(userID);
@@ -91,16 +85,11 @@ public class Server
                             acceptedSocket.close();
                         }
 
-                        //System.out.println("Decrypted ID: " + userID);
-                        //System.out.println("Decrypted Bytes: " + bytes);
-                        //System.out.println("Signature Verified: " + verification);
-
                         // Generate 16 random bytes and combine with clients bytes
                         SecureRandom rand = new SecureRandom();
                         byte[] newBytes = new byte[16];
                         rand.nextBytes(newBytes);
                         byte[] newKey = combineByteArrays(decryptedBytes, newBytes);
-                        //System.err.println("New Key: " + Arrays.toString(newKey));
 
                         // Encrypt the new key
                         Cipher encrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
@@ -126,31 +115,27 @@ public class Server
 
                         //Generate AES Key
                         SecretKeySpec aesKey = new SecretKeySpec(newKey, "AES");
-                        //System.err.println(aesKey.toString());
-                        System.err.println("AES Key generated");
+                        System.out.println("AES Key generated");
                         MessageDigest md = MessageDigest.getInstance("MD5");
                         byte[] initVector = md.digest(newKey);
 
                         // Begin Client communications
                         while(true)
                         {
-                            // This only works if 16 bytes instead of 256 idk why but do not change
+                            System.out.println("Awaiting command from client...");
+                            // Hypothetically size of byte here should be sent by client but since commands are always small 16 works every time here
                             byte[] encCommand = new byte[16];
                             in.readFully(encCommand);
                             String decCommand = decryptMessage(encCommand, aesKey, initVector);
                             initVector = md.digest(initVector);
-                            //System.out.println("Encrypted Command: " + Arrays.toString(encCommand));
                             System.err.println("Received Command: " + decCommand);
                             byte[] response = talkToClient(decCommand, aesKey, initVector);
 
+                            // Get size of response so client knows how much data is expected
                             Integer noOfBytes = response.length;
-                            System.err.println("Number of bytes to send = "+noOfBytes);
                             byte [] responseSize = encryptInteger(noOfBytes, aesKey, initVector);
-                            System.err.println("Encrypted Response Size:"+Arrays.toString(responseSize));
                             try 
                             {
-                                //acceptedSocket.getOutputStream().write(responseSize);
-                                System.err.println(noOfBytes);
                                 acceptedSocket.getOutputStream().write(responseSize);
                                 acceptedSocket.getOutputStream().write(response);
                                 acceptedSocket.getOutputStream().flush();
@@ -179,6 +164,7 @@ public class Server
 
         return pubKey;
     }
+
     // With help from https://www.baeldung.com/java-concatenate-byte-arrays
     public static byte[] combineByteArrays(byte[] a, byte[] b)
     {
@@ -187,6 +173,7 @@ public class Server
         System.arraycopy(b, 0, combined, a.length, b.length);
         return combined;
     }
+
     public static String ListFiles() 
     {
         File[] files = new File("./").listFiles();
@@ -200,6 +187,7 @@ public class Server
         }
         return fileNames;
     }
+
     public static List<String> getFiles() 
     {
         File[] files = new File("./").listFiles();
@@ -213,6 +201,7 @@ public class Server
         }
         return fileNames;
     }
+
     public static byte[] encryptCommand(String command, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
         // Encrypt using AES key
@@ -221,30 +210,31 @@ public class Server
         byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
         return encryptedCommand;
     }
+
     public static byte[] encryptInteger(Integer byteSize, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
-        // Encrypt using AES key
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(byteSize.toString().getBytes());
         return encryptedCommand;
     }
+
     public static byte[] encryptFile(File file, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
-        // Encrypt using AES key
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(Files.readAllBytes(file.toPath()));
         return encryptedCommand;
     }
+
     public static String decryptMessage(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
-        //System.err.println("Decrypting Message");
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
         return new String(decryptedMessage);
     }
+
     public static byte[] talkToClient(String decCommand, SecretKeySpec aeskey, byte[] initVector) throws Exception
     {
         if (decCommand.equals("ls"))
@@ -260,19 +250,18 @@ public class Server
             // With help from https://stackoverflow.com/questions/5067942/what-is-the-best-way-to-extract-the-first-word-from-a-string-in-java regarding getting first string in command
             String commandStrings[] = decCommand.split(" ", 2);
             String commandData = commandStrings[1];
-            System.out.println("Attempting to fetch "+commandData+"...");
             List<String> files = getFiles();
             if (files.contains(commandData))
             {
-                System.err.println(commandData+" Found");
                 File file = new File("./"+commandData);
-                //System.err.println(file.getName());
-                //better to convert to string and send same as enc message that ls does?
                 byte[] fileToSend = encryptFile(file, aeskey, initVector);
+                System.out.println(commandData+" sent to client");
                 return fileToSend;
             }
-            System.err.println("Error fetching file");
-            return new byte[256];
+            String errorResponse = "No such file exists";
+            System.err.println("Error fetching file: No such file exists");
+            byte[] errorResponseAsBytes = encryptCommand(errorResponse, aeskey, initVector);
+            return errorResponseAsBytes;
         }
         else
         {
