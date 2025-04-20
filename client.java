@@ -9,7 +9,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-public class Client 
+public class client 
 {
     public static void main(String[] args) throws Exception
     {

@@ -18,7 +18,7 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-public class Server 
+public class server 
 {
     public static void main(String[] args) throws Exception
     {
