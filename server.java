@@ -13,7 +13,6 @@ import java.security.Signature;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 import javax.crypto.Cipher;
@@ -74,7 +73,7 @@ public class Server
                         byte[] decryptedBytes = decrypt.doFinal(encBytes);
 
                         String userID = new String(decryptedID);
-                        String bytes = Arrays.toString(decryptedBytes);
+                        //String bytes = Arrays.toString(decryptedBytes);
 
                         // Verify signature
                         PublicKey pubKey = fetchUserKeys(userID);
