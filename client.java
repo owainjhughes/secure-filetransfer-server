@@ -43,7 +43,6 @@ public class Client
             SecureRandom rand = new SecureRandom();
             bytes = new byte[16];
             rand.nextBytes(bytes);
-            //System.out.println("Random Unencrypted Bytes: " + Arrays.toString(bytes));
 
             // Fetch public key of server for encryption
             File pub = new File("server.pub");
@@ -80,10 +79,6 @@ public class Client
                 System.out.println("Connected to: " + host);
                 System.out.println("On Port: " + port);
                 System.out.println("As User: " + userID);
-                //System.out.println("Bytes:" + new String(bytes));
-                //System.out.println("Sending Encrypted:\n User:"+Arrays.toString(encryptedID));
-                //System.out.println("Bytes: "+ Arrays.toString(encryptedBytes));
-                //System.out.println("Signed: "+Arrays.toString(signedBytes));
                 
                 DataOutputStream out = new DataOutputStream(socket.getOutputStream());
                 out.write(encryptedID);
@@ -109,7 +104,6 @@ public class Client
                 Cipher decrypt = Cipher.getInstance("RSA/ECB/PKCS1Padding");
                 decrypt.init(Cipher.DECRYPT_MODE, prvKey);
                 byte[] decryptedKey = decrypt.doFinal(encryptedKey);
-                //System.out.println("Decrypted Key: " + Arrays.toString(decryptedKey));
 
                 // Verify signature of the new key
                 PublicKey pubKey = fetchUserKeys("server");
@@ -121,11 +115,11 @@ public class Client
                 // Check signature verification AND first 16 bytes are same
                 if (verification == true && Arrays.equals(Arrays.copyOfRange(decryptedKey, 0, 16), bytes))
                 {
-                    System.out.println("Signature Verified");
+                    System.out.println("Signature verified and Key generated Successfully");
                 }
                 else
                 {
-                    System.out.println("Signature Verification Failed, Closing Connection");
+                    System.out.println("Signature verification Failed, Closing Connection");
                     socket.close();
                 }
                 // Generate hash of bytes for initilisation vector
@@ -134,9 +128,10 @@ public class Client
 
                 //Generate AES Key and begin server communications
                 SecretKeySpec aesKey = new SecretKeySpec(decryptedKey, "AES");
-                //System.err.println(aesKey.toString());
+
                 Boolean commandTaken = false;
                 Boolean dataToDecrypt = false;
+                Boolean fileToDecrypt = false;
                 while (!commandTaken)
                 {
                     System.out.println("What would you like the server to do?");
@@ -145,19 +140,10 @@ public class Client
                     String[] commands = input.split(" ");
                     if (input.equals("ls"))
                     {
-                        System.err.println("Sending Command: " + input);
-                        //byte[] encFiles = new byte[256];
+                        System.out.println("Sending Command: " + input);
                         byte[] encryptedCommand = encryptCommand(input, aesKey, initVector);
                         initVector = md.digest(initVector);
-                        //System.err.println("Sending Encrypted Command: " + Arrays.toString(encryptedCommand));
-                        //String decCommand = decryptMessage(encryptedCommand, aesKey);
-                        //System.err.println("Decrypted Command: " + decCommand);
-                        //out.writeUTF(input);
                         out.write(encryptedCommand);
-                        //System.err.println("Sent Encrypted Command");
-                        //in.read(encFiles);
-                        //String files = decryptMessage(encFiles, aesKey);
-                        //System.out.println(files);
                         dataToDecrypt = true;
                         commandTaken = true;
                     }
@@ -167,13 +153,14 @@ public class Client
                         byte[] encryptedCommand = encryptCommand(input, aesKey, initVector);
                         initVector = md.digest(initVector);
                         out.write(encryptedCommand);
-                        dataToDecrypt = true;
+                        fileToDecrypt = true;
                         commandTaken = true;
                     }
                     else if (input.equals("bye"))
                     {
                         System.out.println("Goodbye");
                         socket.close();
+                        System.exit(0);
                     }
                     else
                     {
@@ -181,13 +168,32 @@ public class Client
                     }
                     if (dataToDecrypt)
                     {
-                        //System.err.println("taking in data");
-                        byte[] encryptedData = new byte[128];
+                        // Get number of bytes so it knows how much data is being sent
+                        byte[] encSize = new byte[16];
+                        in.readFully(encSize);
+                        Integer byteSize = decryptSize(encSize, aesKey, initVector);
+
+                        // Then decrypt the actual data
+                        byte[] encryptedData = new byte[byteSize];
                         in.readFully(encryptedData);
-                        //System.err.println("Encrypted response: "+Arrays.toString(encryptedData));
                         String message = decryptMessage(encryptedData, aesKey, initVector);
                         System.out.println(message);
                         dataToDecrypt = false;
+                        commandTaken = false;
+                    }
+                    else if (fileToDecrypt)
+                    {
+                        // Get number of bytes so it knows how much data is being sent
+                        byte[] encSize = new byte[16];
+                        in.readFully(encSize);
+                        Integer byteSize = decryptSize(encSize, aesKey, initVector);
+
+                        // Then decrypt the actual data
+                        byte[] encryptedData = new byte[byteSize];
+                        in.readFully(encryptedData);
+                        String message = decryptFile(encryptedData, commands[1], aesKey, initVector);
+                        System.out.println(message);
+                        fileToDecrypt = false;
                         commandTaken = false;
                     }
                 }
@@ -212,19 +218,49 @@ public class Client
     // With help from https://stackoverflow.com/questions/17322002/what-causes-the-error-java-security-invalidkeyexception-parameters-missing regarding adding the Initilization vector 
     public static byte[] encryptCommand(String command, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
-        // Encrypt using AES key
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(command.getBytes());
+
         return encryptedCommand;
     }
     public static String decryptMessage(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
     {
-        // Need to change IV to the hashed bytes as described in spec
-        //System.err.println("Decrypting Message");
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
+
         return new String(decryptedMessage);
+    }
+    public static Integer decryptSize(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
+    {
+        Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
+        byte[] decryptedMessage = decrypt.doFinal(message);
+        String size =  new String(decryptedMessage);
+        
+        return Integer.parseInt(size);
+    }
+    public static String decryptFile(byte[] message, String fileName, SecretKeySpec aesKey, byte[] initVector) throws Exception
+    {
+        Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
+        decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
+        byte[] decryptedMessage = decrypt.doFinal(message);
+
+        // Not the best way to handle incorrect files but it works
+        String errMessage = new String(decryptedMessage);
+        if (errMessage.equals("No such file exists"))
+        {
+            return errMessage;
+        }
+        else
+        {
+            // Can be tested to see if it works by changing the FileOutputStream parameters e.g. ("CopyOf+fileName)
+            try (FileOutputStream fos = new FileOutputStream("CopyOf"+fileName)) 
+            {
+                fos.write(decryptedMessage);
+            }
+            return fileName+" has been fetched";
+        }
     }
 }
