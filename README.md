@@ -1,4 +1,4 @@
-## Owain Hughes Foundations of Cybersecurity Coursework 1
+## Secure client-server file transfer system
 
 # Usage
 Server: java Server.java 5678
