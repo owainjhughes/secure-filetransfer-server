@@ -3,9 +3,6 @@
  * "<userid>.pub" and "<userid>.prv" in the current working directory.
  * It is up to you to put the generated keys at some appropriate
  * location for use.
- *
- * This file does not contain any code that you need to include in
- * your own program, and is not part of the submission.
  */
 
 import java.io.*;
