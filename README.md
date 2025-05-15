@@ -1,9 +1,9 @@
 ## Secure client-server file transfer system
 
 # Usage
-Server: <port>\n
-Client: localhost <port> <user>\n
-RSAKeyGen: <user>
+Server: (port)  
+Client: localhost (port) (user)  
+RSAKeyGen: (user)    
 
 Client commands are ls, get <filename>, bye
 
