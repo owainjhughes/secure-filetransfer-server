@@ -17,25 +17,21 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
-public class server 
-{
-    public static void main(String[] args) throws Exception
-    {
-        
-        // SERVER   
+public class server {
+    public static void main(String[] args) throws Exception {
+
+        // SERVER
         int port = Integer.parseInt(args[0]);
         try (ServerSocket socket = new ServerSocket(port)) {
             System.err.println("Waiting for a connection on port " + port);
 
-            while (true)
-            {
+            while (true) {
                 Socket acceptedSocket = socket.accept();
                 System.err.println("Accepted a connection from: " + acceptedSocket.getInetAddress());
-                
-                // GET DATA FROM CLIENT 
+
+                // GET DATA FROM CLIENT
                 DataInputStream in = new DataInputStream(acceptedSocket.getInputStream());
-                try 
-                {
+                try {
                     // Read in data from client
                     byte[] encID = new byte[256];
                     in.readFully(encID);
@@ -46,13 +42,10 @@ public class server
 
                     // DECRYPTION
                     // Check the servers keys exist
-                    if (!new File("server.pub").exists() || !new File("server.prv").exists())
-                    {
+                    if (!new File("server.pub").exists() || !new File("server.prv").exists()) {
                         System.out.println("Error: Servers keys do not exist");
                         return;
-                    }
-                    else
-                    {
+                    } else {
                         // Fetch own private key
                         File file = new File("server.prv");
                         byte[] prvBytes = Files.readAllBytes(file.toPath());
@@ -73,12 +66,9 @@ public class server
                         verified.initVerify(pubKey);
                         verified.update(encBytes);
                         Boolean verification = verified.verify(signedBytes);
-                        if(verification == true)
-                        {
+                        if (verification == true) {
                             System.out.println("Signature Verified");
-                        }
-                        else
-                        {
+                        } else {
                             System.out.println("Signature Verification Failed, Closing Connection");
                             acceptedSocket.close();
                         }
@@ -101,27 +91,24 @@ public class server
                         byte[] signedNewBytes = signature.sign();
 
                         // SEND DATA TO CLIENT
-                        try 
-                        {
+                        try {
                             acceptedSocket.getOutputStream().write(encryptedNewBytes);
                             acceptedSocket.getOutputStream().write(signedNewBytes);
-                        }
-                        catch (IOException e)
-                        {
+                        } catch (IOException e) {
                             System.out.println("Error: Cannot connect to the client" + e);
                         }
 
-                        //Generate AES Key
+                        // Generate AES Key
                         SecretKeySpec aesKey = new SecretKeySpec(newKey, "AES");
                         System.out.println("AES Key generated");
                         MessageDigest md = MessageDigest.getInstance("MD5");
                         byte[] initVector = md.digest(newKey);
 
                         // Begin Client communications
-                        while(true)
-                        {
+                        while (true) {
                             System.out.println("Awaiting command from client...");
-                            // Hypothetically size of byte here should be sent by client but since commands are always small 16 works every time here
+                            // Hypothetically size of byte here should be sent by client but since commands
+                            // are always small 16 works every time here
                             byte[] encCommand = new byte[16];
                             in.readFully(encCommand);
                             String decCommand = decryptMessage(encCommand, aesKey, initVector);
@@ -131,30 +118,25 @@ public class server
 
                             // Get size of response so client knows how much data is expected
                             Integer noOfBytes = response.length;
-                            byte [] responseSize = encryptInteger(noOfBytes, aesKey, initVector);
-                            try 
-                            {
+                            byte[] responseSize = encryptInteger(noOfBytes, aesKey, initVector);
+                            try {
                                 acceptedSocket.getOutputStream().write(responseSize);
                                 acceptedSocket.getOutputStream().write(response);
                                 acceptedSocket.getOutputStream().flush();
-                            }
-                            catch (IOException e)
-                            {
+                            } catch (IOException e) {
                                 System.out.println("Error: Cannot connect to the client" + e);
                             }
                         }
                     }
-                }
-                catch (Exception e)
-                {
+                } catch (Exception e) {
                     System.out.println("Error: Cannot connect to the client" + e);
                 }
             }
         }
     }
-    public static PublicKey fetchUserKeys(String userid) throws Exception
-    {
-        File pub = new File(userid+".pub");
+
+    public static PublicKey fetchUserKeys(String userid) throws Exception {
+        File pub = new File(userid + ".pub");
         byte[] pubBytes = Files.readAllBytes(pub.toPath());
         X509EncodedKeySpec keySpec = new X509EncodedKeySpec(pubBytes);
         KeyFactory kf = KeyFactory.getInstance("RSA");
@@ -164,44 +146,36 @@ public class server
     }
 
     // With help from https://www.baeldung.com/java-concatenate-byte-arrays
-    public static byte[] combineByteArrays(byte[] a, byte[] b)
-    {
+    public static byte[] combineByteArrays(byte[] a, byte[] b) {
         byte[] combined = new byte[a.length + b.length];
         System.arraycopy(a, 0, combined, 0, a.length);
         System.arraycopy(b, 0, combined, a.length, b.length);
         return combined;
     }
 
-    public static String ListFiles() 
-    {
+    public static String ListFiles() {
         File[] files = new File("./").listFiles();
         String fileNames = "";
-        for (File file : files)
-        {
-            if(file.isFile() && !file.getName().endsWith(".prv"))
-            {
-                fileNames = fileNames+(file.getName()+"\n");
+        for (File file : files) {
+            if (file.isFile() && !file.getName().endsWith(".prv")) {
+                fileNames = fileNames + (file.getName() + "\n");
             }
         }
         return fileNames;
     }
 
-    public static List<String> getFiles() 
-    {
+    public static List<String> getFiles() {
         File[] files = new File("./").listFiles();
         List<String> fileNames = new ArrayList<String>();
-        for (File file : files)
-        {
-            if(file.isFile() && !file.getName().endsWith(".prv"))
-            {
+        for (File file : files) {
+            if (file.isFile() && !file.getName().endsWith(".prv")) {
                 fileNames.add(file.getName());
             }
         }
         return fileNames;
     }
 
-    public static byte[] encryptCommand(String command, SecretKeySpec aesKey, byte[] initVector) throws Exception
-    {
+    public static byte[] encryptCommand(String command, SecretKeySpec aesKey, byte[] initVector) throws Exception {
         // Encrypt using AES key
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
@@ -210,8 +184,7 @@ public class server
         return encryptedCommand;
     }
 
-    public static byte[] encryptInteger(Integer byteSize, SecretKeySpec aesKey, byte[] initVector) throws Exception
-    {
+    public static byte[] encryptInteger(Integer byteSize, SecretKeySpec aesKey, byte[] initVector) throws Exception {
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(byteSize.toString().getBytes());
@@ -219,8 +192,7 @@ public class server
         return encryptedCommand;
     }
 
-    public static byte[] encryptFile(File file, SecretKeySpec aesKey, byte[] initVector) throws Exception
-    {
+    public static byte[] encryptFile(File file, SecretKeySpec aesKey, byte[] initVector) throws Exception {
         Cipher encrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         encrypt.init(Cipher.ENCRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] encryptedCommand = encrypt.doFinal(Files.readAllBytes(file.toPath()));
@@ -228,45 +200,39 @@ public class server
         return encryptedCommand;
     }
 
-    public static String decryptMessage(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception
-    {
+    public static String decryptMessage(byte[] message, SecretKeySpec aesKey, byte[] initVector) throws Exception {
         Cipher decrypt = Cipher.getInstance("AES/CBC/PKCS5Padding");
         decrypt.init(Cipher.DECRYPT_MODE, aesKey, new IvParameterSpec(initVector));
         byte[] decryptedMessage = decrypt.doFinal(message);
-        
+
         return new String(decryptedMessage);
     }
 
-    public static byte[] talkToClient(String decCommand, SecretKeySpec aeskey, byte[] initVector) throws Exception
-    {
-        if (decCommand.equals("ls"))
-        {
+    public static byte[] talkToClient(String decCommand, SecretKeySpec aeskey, byte[] initVector) throws Exception {
+        if (decCommand.equals("ls")) {
             System.out.println("Fetching files...");
             String files = ListFiles();
 
             byte[] encFiles = encryptCommand(files, aeskey, initVector);
             return encFiles;
-        }
-        else if(decCommand.startsWith("get"))
-        {
-            // With help from https://stackoverflow.com/questions/5067942/what-is-the-best-way-to-extract-the-first-word-from-a-string-in-java regarding getting first string in command
+        } else if (decCommand.startsWith("get")) {
+            // With help from
+            // https://stackoverflow.com/questions/5067942/what-is-the-best-way-to-extract-the-first-word-from-a-string-in-java
+            // regarding getting first string in command
             String commandStrings[] = decCommand.split(" ", 2);
             String commandData = commandStrings[1];
             List<String> files = getFiles();
-            if (files.contains(commandData))
-            {
-                File file = new File("./"+commandData);
+            if (files.contains(commandData)) {
+                File file = new File("./" + commandData);
                 byte[] fileToSend = encryptFile(file, aeskey, initVector);
-                System.out.println(commandData+" sent to client");
+                System.out.println(commandData + " sent to client");
                 return fileToSend;
             }
             String errorResponse = "No such file exists";
             System.err.println("Error fetching file: No such file exists");
             byte[] errorResponseAsBytes = encryptCommand(errorResponse, aeskey, initVector);
             return errorResponseAsBytes;
-        }
-        else
-        {
+        } else {
             System.out.println("Unknown Command");
             byte[] bytes = new byte[256];
             return bytes;
